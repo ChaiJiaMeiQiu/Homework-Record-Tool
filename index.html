@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>假期作业管家 — 中学生作业上交时间管理</title>
+<style>
+/* ==================== 主题变量 ==================== */
+:root{
+  --c-primary:#4F7CFF; --c-primary-soft:rgba(79,124,255,.12); --c-primary-strong:#3A63E0; --c-on-primary:#FFFFFF;
+  --c-secondary:#FF9F43; --c-secondary-soft:rgba(255,159,67,.16); --c-sec-text:#D97E1F;
+  --c-bg:#F5F7FA; --c-card:#FFFFFF; --c-text:#1F2329; --c-sub:#6B7280; --c-border:#E5E7EB;
+  --c-danger:#E5484D; --c-success:#2F9E6E; --c-doing:#3B82F6; --c-warn:#F59E0B;
+  --shadow:0 2px 12px rgba(15,23,42,.08); --radius:12px;
+}
+html[data-theme="light"]{ color-scheme:light; }
+html[data-theme="dark"]{
+  --c-bg:#12161F; --c-card:#1B2130; --c-text:#E6E9EF; --c-sub:#9AA3B2; --c-border:#2A3242;
+  --shadow:0 2px 12px rgba(0,0,0,.45);
+  color-scheme:dark;
+}
+/* ==================== 基础 ==================== */
+*{ box-sizing:border-box; margin:0; padding:0; }
+html{ -webkit-text-size-adjust:100%; }  /* 防止手机横屏时字体自动放大 */
+body{
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+  background:var(--c-bg); color:var(--c-text); font-size:14px; line-height:1.5;
+  transition:background .2s,color .2s; overflow-x:hidden;
+}
+button{ font-family:inherit; touch-action:manipulation; }
+input,select,textarea{
+  font-family:inherit; font-size:14px; color:var(--c-text);
+  background:var(--c-card); border:1px solid var(--c-border); border-radius:8px; padding:8px 10px;
+}
+input:focus,select:focus,textarea:focus{ outline:2px solid var(--c-primary-soft); border-color:var(--c-primary); }
+textarea{ resize:vertical; min-height:64px; }
+.wrap{ max-width:780px; margin:0 auto; padding:0 14px 60px; }
+/* ==================== 按钮 ==================== */
+.btn{
+  display:inline-flex; align-items:center; gap:6px; border-radius:10px; padding:9px 14px;
+  font-size:14px; cursor:pointer; background:var(--c-card); color:var(--c-text); border:1px solid var(--c-border);
+  transition:filter .15s, background .15s; white-space:nowrap;
+}
+@media (hover:hover){
+  .btn:hover{ filter:brightness(.97); }
+  .btn.primary:hover{ background:var(--c-primary-strong); filter:none; }
+}
+.btn.primary{ background:var(--c-primary); color:var(--c-on-primary); border-color:transparent; }
+.btn.danger{ color:var(--c-danger); border-color:var(--c-danger); background:transparent; }
+.btn.small{ padding:6px 10px; font-size:13px; border-radius:8px; }
+.btn.active{ background:var(--c-primary-soft); color:var(--c-primary); border-color:var(--c-primary); }
+/* ==================== 顶栏 ==================== */
+header{ padding:18px 0 6px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+header h1{ font-size:20px; margin-right:auto; display:flex; align-items:center; gap:8px; }
+header h1 .dot{ width:12px; height:12px; border-radius:4px; background:var(--c-primary); display:inline-block; }
+/* ==================== 统计 ==================== */
+.stats{ display:flex; gap:8px; flex-wrap:wrap; margin:14px 0 10px; }
+.stat{ background:var(--c-card); border:1px solid var(--c-border); border-radius:10px; padding:8px 14px; font-size:13px; color:var(--c-sub); box-shadow:var(--shadow); }
+.stat b{ font-size:17px; margin-left:6px; color:var(--c-text); }
+.stat.s-ok b{ color:var(--c-success); }
+.stat.s-warn b{ color:var(--c-danger); }
+/* ==================== 筛选栏 ==================== */
+.filters{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+.filters select{ padding:7px 8px; font-size:13px; border-radius:8px; }
+.spacer{ flex:1; }
+/* ==================== 批量操作栏 ==================== */
+.batchbar{
+  display:none; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px;
+  background:var(--c-primary-soft); border:1px solid var(--c-primary); border-radius:10px; padding:9px 12px; font-size:13px;
+}
+.batchbar.show{ display:flex; }
+body.inbatch .hw-card .pick{ display:flex; }
+/* ==================== 作业卡片 ==================== */
+#list{ min-height:120px; }
+.hw-card{
+  display:flex; gap:10px; align-items:flex-start;
+  background:var(--c-card); border:1px solid var(--c-border); border-left:4px solid var(--c-primary-soft);
+  border-radius:var(--radius); padding:12px; margin-bottom:10px; box-shadow:var(--shadow);
+  transition:opacity .2s;
+}
+.hw-card.overdue{ border-left-color:var(--c-danger); }
+.hw-card.isdone{ opacity:.55; }
+.hw-card.selected{ outline:2px solid var(--c-primary); }
+.hw-card .pick{ display:none; align-items:center; padding-top:3px; }
+.hw-card .pick input{ width:18px; height:18px; cursor:pointer; }
+.hw-main{ flex:1; min-width:0; }
+.hw-top{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.hw-title{ font-size:15px; font-weight:600; word-break:break-all; }
+.chip{ display:inline-block; padding:2px 9px; border-radius:999px; font-size:12px; white-space:nowrap; }
+.chip.subj{ background:var(--c-primary-soft); color:var(--c-primary); font-weight:600; }
+.chip.urgent{ background:var(--c-danger); color:#fff; }
+.chip.overdue{ background:var(--c-danger); color:#fff; }
+.chip.tag{ background:var(--c-secondary-soft); color:var(--c-sec-text); }
+.hw-meta{ display:flex; gap:6px 14px; flex-wrap:wrap; margin-top:6px; font-size:13px; color:var(--c-sub); }
+.hw-meta .remain.soon{ color:var(--c-danger); font-weight:600; }
+.hw-notes{ margin-top:6px; font-size:13px; color:var(--c-sub); background:var(--c-bg); border-radius:8px; padding:6px 9px; }
+.hw-ops{ display:flex; gap:6px; align-items:center; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; }
+.st{ border:1px solid var(--c-border); border-radius:999px; padding:4px 11px; font-size:12px; cursor:pointer; background:transparent; color:var(--c-sub); white-space:nowrap; }
+.st.todo{ color:var(--c-sub); }
+.st.doing{ color:var(--c-doing); border-color:var(--c-doing); }
+.st.done{ color:var(--c-success); border-color:var(--c-success); }
+.ib{ border:none; background:transparent; color:var(--c-primary); font-size:13px; cursor:pointer; padding:4px 6px; border-radius:6px; }
+.ib.danger{ color:var(--c-danger); }
+@media (hover:hover){
+  .ib:hover{ background:var(--c-primary-soft); }
+  .ib.danger:hover{ background:rgba(229,72,77,.1); }
+}
+.empty{ text-align:center; color:var(--c-sub); padding:48px 0; }
+.empty .big{ font-size:16px; margin-bottom:6px; }
+/* ==================== 提醒横幅 ==================== */
+#remindBox{ position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:80; display:flex; flex-direction:column; gap:8px; width:min(440px,94vw); }
+.remind{
+  background:var(--c-card); border:1px solid var(--c-primary); border-left:5px solid var(--c-primary);
+  border-radius:12px; padding:12px 14px; box-shadow:0 6px 24px rgba(0,0,0,.18);
+  animation:slidein .25s ease-out;
+}
+@keyframes slidein{ from{ transform:translateY(-16px); opacity:0; } to{ transform:none; opacity:1; } }
+.remind .rt{ font-weight:600; margin-bottom:4px; }
+.remind .rb{ display:flex; gap:8px; margin-top:8px; justify-content:flex-end; }
+/* ==================== 弹窗 ==================== */
+.overlay{ position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:60; display:none; align-items:flex-start; justify-content:center; padding:6vh 12px; overflow:auto; }
+.overlay.show{ display:flex; }
+.modal{ width:min(560px,100%); background:var(--c-card); border-radius:16px; padding:20px; box-shadow:0 10px 40px rgba(0,0,0,.25); }
+.modal h2{ font-size:17px; margin-bottom:16px; }
+.modal .mops{ display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
+.field{ margin-bottom:13px; }
+.flabel{ display:block; font-size:13px; color:var(--c-sub); margin-bottom:5px; }
+.frow{ display:flex; gap:10px; }
+.frow .field{ flex:1; }
+.req::after{ content:" *"; color:var(--c-danger); }
+.ferr{ color:var(--c-danger); font-size:13px; min-height:18px; margin-top:4px; }
+.checkline{ display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer; }
+.checkline input{ width:16px; height:16px; }
+/* 标签选择器 */
+.tgbox{ display:flex; gap:8px; flex-wrap:wrap; }
+.tg{ border:1px solid var(--c-border); background:transparent; border-radius:999px; padding:5px 12px; font-size:13px; cursor:pointer; color:var(--c-text); display:inline-flex; align-items:center; gap:5px; }
+.tg.on{ background:var(--c-primary-soft); color:var(--c-primary); border-color:var(--c-primary); }
+.tg .x{ color:var(--c-sub); font-weight:700; }
+.tg .x:hover{ color:var(--c-danger); }
+/* 设置区 */
+.sec{ border:1px solid var(--c-border); border-radius:12px; padding:14px; margin-bottom:14px; }
+.sec h3{ font-size:14px; margin-bottom:10px; color:var(--c-primary); }
+.sec .hint{ font-size:12px; color:var(--c-sub); margin-top:6px; }
+.colorrow{ display:flex; align-items:center; gap:10px; margin-bottom:8px; font-size:14px; }
+.colorrow input[type=color]{ width:44px; height:32px; padding:2px; cursor:pointer; }
+.offsets{ display:flex; gap:8px; flex-wrap:wrap; }
+.acct .hint{ margin-top:8px; }
+/* 确认弹窗 */
+.confirm .modal{ width:min(380px,100%); text-align:center; }
+.confirm p{ margin:8px 0 4px; }
+/* toast */
+#toast{
+  position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(20px);
+  background:var(--c-text); color:var(--c-bg); padding:10px 18px; border-radius:10px; font-size:14px;
+  opacity:0; pointer-events:none; transition:all .25s; z-index:90; max-width:90vw;
+}
+#toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+/* 存储不可用横幅 */
+#storBanner{ display:none; background:var(--c-danger); color:#fff; text-align:center; padding:8px 12px; font-size:13px; }
+/* ==================== 登录/注册门屏 ==================== */
+#authOverlay{ position:fixed; inset:0; z-index:70; background:var(--c-bg); display:none; align-items:center; justify-content:center; padding:20px; }
+#authOverlay.show{ display:flex; }
+.authcard{ width:min(400px,100%); background:var(--c-card); border:1px solid var(--c-border); border-radius:18px; padding:28px 24px; box-shadow:var(--shadow); }
+.authcard .logo{ display:flex; align-items:center; gap:10px; justify-content:center; margin-bottom:6px; font-size:22px; font-weight:700; }
+.authcard .logo .dot{ width:14px; height:14px; border-radius:5px; background:var(--c-primary); display:inline-block; }
+.authcard .sub{ text-align:center; color:var(--c-sub); font-size:13px; margin-bottom:20px; }
+/* ==================== 平板（641-900px，竖屏 iPad 等） ==================== */
+@media (min-width:641px) and (max-width:900px){
+  .wrap{ max-width:720px; }
+  .stats{ display:grid; grid-template-columns:repeat(4,1fr); }
+  .stat{ display:flex; align-items:center; justify-content:space-between; text-align:center; }
+  .filters select{ flex:1 1 30%; }
+  .hw-ops{ max-width:160px; }
+}
+/* ==================== 手机（≤640px） ==================== */
+@media (max-width:640px){
+  header{ padding-top:calc(14px + env(safe-area-inset-top, 0px)); }
+  header h1{ font-size:17px; flex-basis:100%; }
+  header .btn{ flex:1 1 auto; justify-content:center; }
+  #btnNew{ flex:1.4 1 auto; }
+  .stats{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+  .stat{ display:flex; align-items:center; justify-content:space-between; padding:9px 12px; }
+  .filters select{ flex:1 1 44%; font-size:16px; }
+  input,select,textarea{ font-size:16px; }  /* ≥16px 防止 iOS 聚焦时页面自动放大 */
+  .btn{ padding:10px 12px; }
+  .st{ padding:6px 12px; font-size:13px; }
+  .ib{ padding:6px 8px; }
+  .hw-card{ flex-wrap:wrap; }
+  .hw-ops{ width:100%; justify-content:flex-start; padding-top:4px; }
+  .frow{ flex-direction:column; gap:0; }
+  .wrap{ padding-bottom:calc(60px + env(safe-area-inset-bottom, 0px)); }
+  .overlay{ padding:0; align-items:flex-end; }   /* 弹窗改为底部抽屉式 */
+  .modal{ width:100%; border-radius:18px 18px 0 0; padding:18px 16px calc(24px + env(safe-area-inset-bottom, 0px)); max-height:92vh; max-height:92dvh; overflow:auto; }
+  #remindBox{ top:calc(12px + env(safe-area-inset-top, 0px)); }
+  #toast{ bottom:calc(20px + env(safe-area-inset-bottom, 0px)); }
+  #authOverlay{ padding:16px; align-items:center; }
+  .authcard{ padding:24px 20px; }
+}
+</style>
+</head>
+<body>
+<div id="storBanner">当前浏览器无法保存数据（可能处于无痕/隐私模式），刷新后数据将丢失，请更换浏览器或退出无痕模式。</div>
+<div id="remindBox"></div>
+
+<div class="wrap">
+  <header>
+    <h1><span class="dot"></span>假期作业管家</h1>
+    <button class="btn small" id="btnMode">深色模式</button>
+    <button class="btn small" id="btnSettings">设置</button>
+    <button class="btn primary" id="btnNew">+ 新增作业</button>
+  </header>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="filters" id="filters">
+    <select data-f="subject"><option value="">全部科目</option></select>
+    <select data-f="status">
+      <option value="">全部状态</option>
+      <option value="todo">未开始</option>
+      <option value="doing">进行中</option>
+      <option value="done">已完成</option>
+      <option value="overdue">超时未完成</option>
+    </select>
+    <select data-f="urgent">
+      <option value="">全部优先级</option>
+      <option value="urgent">仅紧急</option>
+      <option value="normal">仅普通</option>
+    </select>
+    <select data-f="tag"><option value="">全部类型</option></select>
+    <span class="spacer"></span>
+    <button class="btn small" id="btnBatch">批量管理</button>
+    <button class="btn small danger" id="btnClearDone" style="display:none">清空已完成</button>
+  </div>
+
+  <div class="batchbar" id="batchbar">
+    <span>已选 <b id="selCount">0</b> 项</span>
+    <button class="btn small" id="bAll">全选</button>
+    <button class="btn small" id="bInvert">反选</button>
+    <button class="btn small" id="bDoing">标记进行中</button>
+    <button class="btn small" id="bDone">标记已完成</button>
+    <button class="btn small danger" id="bDel">删除所选</button>
+    <button class="btn small" id="bExit">完成</button>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<!-- 登录/注册门屏（未登录时全屏显示，统一智能入口：新用户名自动注册） -->
+<div id="authOverlay">
+  <div class="authcard">
+    <div class="logo"><span class="dot"></span>假期作业管家</div>
+    <div class="sub">中学生作业上交时间管理 · 输入用户名密码进入</div>
+    <div class="field">
+      <label class="flabel">用户名</label>
+      <input id="authUser" placeholder="3-20 位字母/数字/下划线/中文" style="width:100%">
+    </div>
+    <div class="field">
+      <label class="flabel">密码</label>
+      <input id="authPass" type="password" placeholder="至少 6 位" style="width:100%">
+    </div>
+    <div class="ferr" id="authErr"></div>
+    <button class="btn primary" id="authSubmit" type="button" style="width:100%;justify-content:center">登录 / 注册</button>
+    <div style="text-align:center;margin-top:12px;color:var(--c-sub);font-size:12px">本地模式：账号与作业数据仅保存在本机浏览器<br>输入新的用户名将自动注册，已注册的用户名验证密码后进入</div>
+  </div>
+</div>
+
+<!-- 作业编辑弹窗 -->
+<div class="overlay" id="editorOverlay">
+  <div class="modal">
+    <h2 id="editorTitle">新增作业</h2>
+    <div class="frow">
+      <div class="field">
+        <label class="flabel req">作业科目</label>
+        <select id="eSubject" style="width:100%"></select>
+      </div>
+      <div class="field" id="eSubjectCustomWrap" style="display:none">
+        <label class="flabel req">自定义科目</label>
+        <input id="eSubjectCustom" placeholder="如：信息技术" style="width:100%">
+      </div>
+    </div>
+    <div class="field">
+      <label class="flabel req">作业名称 / 内容</label>
+      <input id="eTitle" placeholder="如：数学试卷 P20-25" style="width:100%">
+    </div>
+    <div class="frow">
+      <div class="field">
+        <label class="flabel req">上交日期</label>
+        <input id="eDate" type="date" style="width:100%">
+      </div>
+      <div class="field">
+        <label class="flabel req">截止时段</label>
+        <select id="ePeriod" style="width:100%">
+          <option value="morning">上午（12:00 前）</option>
+          <option value="afternoon">下午（18:00 前）</option>
+          <option value="evening" selected>晚上（21:00 前）</option>
+          <option value="custom">具体时间点</option>
+        </select>
+      </div>
+      <div class="field" id="eTimeWrap" style="display:none">
+        <label class="flabel req">具体时间</label>
+        <input id="eTime" type="time" style="width:100%">
+      </div>
+    </div>
+    <div class="frow">
+      <div class="field">
+        <label class="flabel">提交方式</label>
+        <select id="eSubmit" style="width:100%">
+          <option value="">不指定</option>
+          <option value="online">线上提交</option>
+          <option value="offline">线下纸质上交</option>
+        </select>
+      </div>
+      <div class="field" style="display:flex;align-items:flex-end;padding-bottom:2px">
+        <label class="checkline"><input type="checkbox" id="eUrgent"> 标记为紧急</label>
+      </div>
+    </div>
+    <div class="field">
+      <label class="flabel">作业类型标签（可多选）</label>
+      <div class="tgbox" id="eTags"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="eTagNew" placeholder="自定义标签，回车添加" style="flex:1">
+        <button class="btn small" id="eTagAdd" type="button">添加</button>
+      </div>
+    </div>
+    <div class="field">
+      <label class="flabel">备注</label>
+      <textarea id="eNotes" placeholder="如：需拍照上传、手写完成等" style="width:100%"></textarea>
+    </div>
+    <div class="ferr" id="eErr"></div>
+    <div class="mops">
+      <button class="btn" id="eCancel">取消</button>
+      <button class="btn primary" id="eSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 设置弹窗 -->
+<div class="overlay" id="settingsOverlay">
+  <div class="modal" style="width:min(520px,100%)">
+    <h2>设置</h2>
+
+    <div class="sec">
+      <h3>主题外观</h3>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="btn small" id="tLight">浅色</button>
+        <button class="btn small" id="tDark">深色</button>
+      </div>
+      <div class="colorrow"><input type="color" id="cPrimary"><span>主色调（按钮、高亮、标题）</span></div>
+      <div class="colorrow"><input type="color" id="cSecondary"><span>辅助色调（标签、状态色）</span></div>
+      <div class="hint">自定义配色自动保存，更换设备重新配置即可。</div>
+    </div>
+
+    <div class="sec">
+      <h3>作业提醒</h3>
+      <label class="checkline" style="margin-bottom:10px"><input type="checkbox" id="rEnabled"> 开启截止提醒（默认开启）</label>
+      <div class="flabel">提前提醒时长（可多选）</div>
+      <div class="offsets" id="rOffsets"></div>
+      <label class="checkline" style="margin-top:12px"><input type="checkbox" id="rNotify"> 同时发送系统通知（需授权）</label>
+      <div class="hint">提醒需保持本页面处于打开状态（可固定标签页）；超时未完成的作业会自动标红置顶。</div>
+    </div>
+
+    <div class="sec acct">
+      <h3>账号与同步</h3>
+      <div id="acctBox"></div>
+      <div class="hint">当前为本地模式：账号与作业数据仅保存在本机浏览器。退出登录后将返回登录/注册界面；换设备请使用「导出备份 / 导入备份」。</div>
+    </div>
+
+    <div class="sec">
+      <h3>数据管理</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn small" id="dExport">导出备份</button>
+        <button class="btn small" id="dImport">导入备份</button>
+        <button class="btn small danger" id="dClearDone">清空已完成</button>
+        <button class="btn small danger" id="dClearAll">清空全部数据</button>
+      </div>
+      <div class="hint">建议定期导出 JSON 备份，防止浏览器清理数据导致丢失。</div>
+    </div>
+
+    <div class="mops">
+      <button class="btn primary" id="sClose">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 确认弹窗 -->
+<div class="overlay confirm" id="confirmOverlay">
+  <div class="modal">
+    <h2 id="cfTitle">确认操作</h2>
+    <p id="cfMsg"></p>
+    <div class="mops" style="justify-content:center">
+      <button class="btn" id="cfNo">取消</button>
+      <button class="btn danger" id="cfYes">确定</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<input type="file" id="importFile" accept=".json,application/json" hidden>
+
+<script>
+'use strict';
+/* ================================================================
+ * 假期作业管家 —— 单文件版
+ * 模块：工具 / 配置 / 存储 / 数据 / 主题 / 渲染 / 编辑器 / 设置 / 提醒 / 同步 / 启动
+ * ================================================================ */
+
+/* ---------------- 工具 ---------------- */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function uid(){ return 'hw_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6); }
+function pad(n){ return String(n).padStart(2, '0'); }
+function fmtDate(d){ return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function parseLocal(dateStr, hhmm){
+  const p = dateStr.split('-').map(Number), t = hhmm.split(':').map(Number);
+  return new Date(p[0], p[1] - 1, p[2], t[0] || 0, t[1] || 0).getTime();
+}
+function hexToRgb(hex){
+  const h = hex.replace('#', '');
+  return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16) };
+}
+function hexA(hex, a){ const c = hexToRgb(hex); return 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + a + ')'; }
+function shade(hex, f){
+  const c = hexToRgb(hex);
+  return '#' + [c.r, c.g, c.b].map(v => Math.round(v * f).toString(16).padStart(2, '0')).join('');
+}
+function yiq(hex){ const c = hexToRgb(hex); return (c.r * 299 + c.g * 587 + c.b * 114) / 1000; }
+/* 简单哈希，仅用于本地模式演示，非安全存储 */
+function hashPwd(s){ let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return 'h' + h.toString(36); }
+
+let toastTimer = null;
+function toast(msg){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ---------------- 配置常量 ---------------- */
+const K = { ITEMS: 'hw.items.v1', SETTINGS: 'hw.settings.v1', REMIND: 'hw.reminded.v1', AUTH: 'hw.auth.v1' };
+const CFG = {
+  subjects: ['语文', '数学', '英语', '物理', '化学', '生物', '政治', '历史', '地理'],
+  periodMap: {
+    morning:   { label: '上午', time: '12:00' },
+    afternoon: { label: '下午', time: '18:00' },
+    evening:   { label: '晚上', time: '21:00' }
+  },
+  tagPresets: ['书面作业', '背诵作业', '实践作业', '线上打卡', '试卷练习', '手抄报'],
+  offsets: [
+    { h: 1,  label: '提前1小时' },
+    { h: 3,  label: '提前3小时' },
+    { h: 12, label: '半天（12小时）' },
+    { h: 24, label: '提前1天' },
+    { h: 48, label: '提前2天' }
+  ],
+  statusMap: { todo: '未开始', doing: '进行中', done: '已完成' },
+  submitMap: { online: '线上提交', offline: '线下纸质上交' }
+};
+
+/* ---------------- 存储（localStorage 封装） ---------------- */
+function storageOK(){
+  try { localStorage.setItem('__t', '1'); localStorage.removeItem('__t'); return true; }
+  catch (e) { return false; }
+}
+const Store = {
+  get(key, def){
+    try {
+      const v = localStorage.getItem(key);
+      return v == null ? def : JSON.parse(v);
+    } catch (e) { console.warn('读取失败:', key, e); return def; }
+  },
+  set(key, val){
+    try { localStorage.setItem(key, JSON.stringify(val)); return true; }
+    catch (e) {
+      console.warn('保存失败:', key, e);
+      toast('保存失败：本地存储空间不足或被禁用');
+      return false;
+    }
+  }
+};
+
+/* ---------------- 全局状态 ---------------- */
+function defaultSettings(){
+  return {
+    theme: { mode: 'light', primary: '#4F7CFF', secondary: '#FF9F43' },
+    reminder: { enabled: true, offsetsHours: [1, 24], notifySystem: false },
+    account: { username: null, token: null, lastSyncAt: 0 }
+  };
+}
+const S = {
+  items: [],
+  settings: defaultSettings(),
+  filter: { subject: '', status: '', urgent: '', tag: '' },
+  batch: false,
+  selected: new Set(),
+  editingId: null,
+  renderedOV: new Map()   // 渲染时每条作业的超时态快照，用于轻量刷新判断
+};
+
+/* ---------------- 数据层 ---------------- */
+function visibleItems(){ return S.items.filter(i => !i.deleted); }
+function periodTimeOf(dl){ return dl.period === 'custom' ? (dl.time || '23:59') : CFG.periodMap[dl.period].time; }
+function computeTs(dl){ return parseLocal(dl.date, periodTimeOf(dl)); }
+function isOverdue(it){ return it.status !== 'done' && it.deadlineTs < Date.now(); }
+function deadlineText(it){
+  const d = it.deadline;
+  const dt = new Date(parseLocal(d.date, '00:00'));
+  const md = (dt.getMonth() + 1) + '月' + dt.getDate() + '日';
+  if (d.period === 'custom') return md + ' ' + (d.time || '23:59') + ' 前';
+  const p = CFG.periodMap[d.period];
+  return md + ' ' + p.label + '（' + p.time + ' 前）';
+}
+function durText(ms){
+  const mins = Math.max(0, Math.ceil(ms / 60000));
+  const d = Math.floor(mins / 1440), h = Math.floor((mins % 1440) / 60), m = mins % 60;
+  if (d > 0) return h > 0 ? d + '天' + h + '小时' : d + '天';
+  if (h > 0) return h + '小时' + (m > 0 ? m + '分钟' : '');
+  return m + '分钟';
+}
+function remainingText(it){
+  const diff = it.deadlineTs - Date.now();
+  return diff >= 0 ? '剩 ' + durText(diff) : '已超时 ' + durText(-diff);
+}
+/* 排序优先级：超时未完成 0 < 紧急 1 < 普通未完成 2 < 已完成 3，组内按截止时间升序 */
+function rank(it){
+  if (it.status === 'done') return 3;
+  if (it.deadlineTs < Date.now()) return 0;
+  if (it.priority === 'urgent') return 1;
+  return 2;
+}
+function sortItems(arr){
+  return arr.slice().sort((a, b) => rank(a) - rank(b) || a.deadlineTs - b.deadlineTs || a.updatedAt - b.updatedAt);
+}
+function filterItems(arr, f){
+  return arr.filter(it => {
+    if (f.subject && it.subject !== f.subject) return false;
+    if (f.status === 'overdue') { if (!isOverdue(it)) return false; }
+    else if (f.status && it.status !== f.status) return false;
+    if (f.urgent === 'urgent' && it.priority !== 'urgent') return false;
+    if (f.urgent === 'normal' && it.priority === 'urgent') return false;
+    if (f.tag && !it.tags.includes(f.tag)) return false;
+    return true;
+  });
+}
+function calcStats(arr){
+  let done = 0, overdue = 0;
+  arr.forEach(it => {
+    if (it.status === 'done') done++;
+    else if (it.deadlineTs < Date.now()) overdue++;
+  });
+  return { total: arr.length, undone: arr.length - done, done, overdue };
+}
+function saveItems(){ Store.set(K.ITEMS, S.items); }
+function touch(it){ it.updatedAt = Date.now(); }
+
+/* ---------------- 主题 ---------------- */
+function applyTheme(){
+  const t = S.settings.theme;
+  document.documentElement.setAttribute('data-theme', t.mode);
+  const r = document.documentElement.style;
+  r.setProperty('--c-primary', t.primary);
+  r.setProperty('--c-primary-soft', hexA(t.primary, .12));
+  r.setProperty('--c-primary-strong', shade(t.primary, .85));
+  r.setProperty('--c-on-primary', yiq(t.primary) > 186 ? '#1F2329' : '#FFFFFF');
+  r.setProperty('--c-secondary', t.secondary);
+  r.setProperty('--c-secondary-soft', hexA(t.secondary, .16));
+  r.setProperty('--c-sec-text', yiq(t.secondary) > 170 ? shade(t.secondary, .68) : t.secondary);
+  const btn = $('#btnMode');
+  if (btn) btn.textContent = t.mode === 'light' ? '深色模式' : '浅色模式';
+}
+
+/* ---------------- 渰染：统计 / 筛选 / 列表 ---------------- */
+function renderStats(){
+  const st = calcStats(visibleItems());
+  $('#stats').innerHTML =
+    '<span class="stat">总作业<b>' + st.total + '</b></span>' +
+    '<span class="stat">未完成<b>' + st.undone + '</b></span>' +
+    '<span class="stat s-ok">已完成<b>' + st.done + '</b></span>' +
+    '<span class="stat s-warn">超时<b>' + st.overdue + '</b></span>';
+  $('#btnClearDone').style.display = st.done > 0 ? '' : 'none';
+}
+
+function renderTagFilter(){
+  const sel = $('#filters select[data-f="tag"]');
+  const cur = S.filter.tag;
+  const tags = new Set(CFG.tagPresets);
+  visibleItems().forEach(it => it.tags.forEach(t => tags.add(t)));
+  sel.innerHTML = '<option value="">全部类型</option>' +
+    Array.from(tags).map(t => '<option value="' + escapeHtml(t) + '"' + (t === cur ? ' selected' : '') + '>' + escapeHtml(t) + '</option>').join('');
+}
+
+function statusBtn(it){
+  return '<button class="st ' + it.status + '" data-act="status" title="点击切换状态">' + CFG.statusMap[it.status] + '</button>';
+}
+function cardHTML(it){
+  const ov = isOverdue(it);
+  const cls = ['hw-card', ov ? 'overdue' : '', it.status === 'done' ? 'isdone' : '', S.batch && S.selected.has(it.id) ? 'selected' : ''].join(' ');
+  const tags = it.tags.map(t => '<span class="chip tag">' + escapeHtml(t) + '</span>').join('');
+  const submit = it.submitMethod ? '<span>提交：' + CFG.submitMap[it.submitMethod] + '</span>' : '';
+  const notes = it.notes ? '<div class="hw-notes">备注：' + escapeHtml(it.notes) + '</div>' : '';
+  return '<article class="' + cls + '" data-id="' + it.id + '" data-ov="' + ov + '">' +
+    '<label class="pick"><input type="checkbox" data-act="pick"' + (S.selected.has(it.id) ? ' checked' : '') + '></label>' +
+    '<div class="hw-main">' +
+      '<div class="hw-top">' +
+        '<span class="chip subj">' + escapeHtml(it.subject) + '</span>' +
+        (it.priority === 'urgent' ? '<span class="chip urgent">紧急</span>' : '') +
+        (ov ? '<span class="chip overdue">超时</span>' : '') +
+        '<span class="hw-title">' + escapeHtml(it.title) + '</span>' +
+      '</div>' +
+      '<div class="hw-meta">' + tags +
+        '<span>截止：' + escapeHtml(deadlineText(it)) + '</span>' +
+        '<span class="remain js-remain' + (it.deadlineTs - Date.now() > 0 && it.deadlineTs - Date.now() < 3600000 ? ' soon' : '') + '" data-id="' + it.id + '">' + escapeHtml(remainingText(it)) + '</span>' +
+        submit +
+      '</div>' + notes +
+    '</div>' +
+    '<div class="hw-ops">' + statusBtn(it) +
+      '<button class="ib" data-act="edit">编辑</button>' +
+      '<button class="ib danger" data-act="del">删除</button>' +
+    '</div>' +
+  '</article>';
+}
+function renderList(){
+  const items = sortItems(filterItems(visibleItems(), S.filter));
+  S.renderedOV = new Map(visibleItems().map(it => [it.id, isOverdue(it)]));
+  const box = $('#list');
+  if (!visibleItems().length){
+    box.innerHTML = '<div class="empty"><div class="big">还没有作业记录</div><div>点击右上角「+ 新增作业」，把假期作业统一管理起来</div></div>';
+    return;
+  }
+  if (!items.length){
+    box.innerHTML = '<div class="empty"><div class="big">没有符合筛选条件的作业</div><div>可调整上方筛选条件</div></div>';
+    return;
+  }
+  box.innerHTML = items.map(cardHTML).join('');
+}
+/* 轻量刷新：只更新剩余时长文本；若超时态发生变化则全量刷新 */
+function refreshTimes(){
+  let changed = false;
+  visibleItems().forEach(it => {
+    const ov = isOverdue(it);
+    if (S.renderedOV.get(it.id) !== ov) { changed = true; return; }
+    const el = document.querySelector('.js-remain[data-id="' + it.id + '"]');
+    if (el) el.textContent = remainingText(it);
+  });
+  if (changed) refreshAll();
+}
+function renderBatchBar(){
+  $('#batchbar').classList.toggle('show', S.batch);
+  $('#selCount').textContent = S.selected.size;
+}
+function refreshAll(){
+  renderStats();
+  renderTagFilter();
+  renderList();
+  renderBatchBar();
+}
+
+/* ---------------- 确认弹窗 ---------------- */
+let cfCb = null;
+function confirmBox(msg, cb){
+  $('#cfMsg').textContent = msg;
+  cfCb = cb;
+  $('#confirmOverlay').classList.add('show');
+}
+function bindConfirm(){
+  $('#cfYes').addEventListener('click', () => { $('#confirmOverlay').classList.remove('show'); if (cfCb) cfCb(); cfCb = null; });
+  $('#cfNo').addEventListener('click', () => { $('#confirmOverlay').classList.remove('show'); cfCb = null; });
+  $('#confirmOverlay').addEventListener('click', e => { if (e.target === e.currentTarget){ $('#confirmOverlay').classList.remove('show'); cfCb = null; } });
+}
+
+/* ---------------- 编辑弹窗 ---------------- */
+const Editor = {
+  selTags: new Set(),
+  customTags: [],
+  init(){
+    const sel = $('#eSubject');
+    sel.innerHTML = CFG.subjects.map(s => '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>').join('') +
+      '<option value="custom">其他（自定义）</option>';
+    sel.addEventListener('change', () => this.syncSubject());
+    $('#ePeriod').addEventListener('change', () => this.syncPeriod());
+    $('#eTagAdd').addEventListener('click', () => this.addCustomTag());
+    $('#eTagNew').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); this.addCustomTag(); } });
+    $('#eTags').addEventListener('click', e => {
+      const rm = e.target.closest('[data-rm]');
+      if (rm){ this.customTags = this.customTags.filter(t => t !== rm.dataset.rm); this.selTags.delete(rm.dataset.rm); this.renderTags(); return; }
+      const tg = e.target.closest('.tg'); if (!tg) return;
+      const name = tg.dataset.name;
+      if (this.selTags.has(name)) this.selTags.delete(name); else this.selTags.add(name);
+      this.renderTags();
+    });
+    $('#eSave').addEventListener('click', () => this.save());
+    $('#eCancel').addEventListener('click', () => this.close());
+    $('#editorOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) this.close(); });
+  },
+  syncSubject(){ $('#eSubjectCustomWrap').style.display = $('#eSubject').value === 'custom' ? '' : 'none'; },
+  syncPeriod(){ $('#eTimeWrap').style.display = $('#ePeriod').value === 'custom' ? '' : 'none'; },
+  renderTags(){
+    const html = CFG.tagPresets.map(t =>
+      '<button type="button" class="tg' + (this.selTags.has(t) ? ' on' : '') + '" data-name="' + escapeHtml(t) + '">' + escapeHtml(t) + '</button>').join('') +
+      this.customTags.map(t =>
+      '<button type="button" class="tg' + (this.selTags.has(t) ? ' on' : '') + '" data-name="' + escapeHtml(t) + '">' + escapeHtml(t) +
+      '<span class="x" data-rm="' + escapeHtml(t) + '" title="删除该标签">×</span></button>').join('');
+    $('#eTags').innerHTML = html;
+  },
+  addCustomTag(){
+    const inp = $('#eTagNew');
+    const v = inp.value.trim();
+    if (!v) return;
+    if (CFG.tagPresets.includes(v) || this.customTags.includes(v)){ inp.value = ''; return; }
+    this.customTags.push(v);
+    this.selTags.add(v);
+    inp.value = '';
+    this.renderTags();
+  },
+  open(id){
+    this.editing = id || null;
+    S.editingId = id || null;
+    $('#eErr').textContent = '';
+    $('#editorTitle').textContent = id ? '编辑作业' : '新增作业';
+    this.customTags = [];
+    this.selTags = new Set();
+    if (id){
+      const it = S.items.find(x => x.id === id);
+      if (!it) return;
+      if (CFG.subjects.includes(it.subject)) { $('#eSubject').value = it.subject; $('#eSubjectCustom').value = ''; }
+      else { $('#eSubject').value = 'custom'; $('#eSubjectCustom').value = it.subject; }
+      this.syncSubject();
+      $('#eTitle').value = it.title;
+      $('#eDate').value = it.deadline.date;
+      $('#ePeriod').value = it.deadline.period;
+      $('#eTime').value = it.deadline.time || '';
+      this.syncPeriod();
+      $('#eSubmit').value = it.submitMethod || '';
+      $('#eUrgent').checked = it.priority === 'urgent';
+      $('#eNotes').value = it.notes || '';
+      it.tags.forEach(t => { this.selTags.add(t); if (!CFG.tagPresets.includes(t)) this.customTags.push(t); });
+    } else {
+      $('#eSubject').value = '数学'; $('#eSubjectCustom').value = ''; this.syncSubject();
+      $('#eTitle').value = '';
+      $('#eDate').value = fmtDate(new Date());
+      $('#ePeriod').value = 'evening'; $('#eTime').value = ''; this.syncPeriod();
+      $('#eSubmit').value = ''; $('#eUrgent').checked = false; $('#eNotes').value = '';
+    }
+    this.renderTags();
+    $('#editorOverlay').classList.add('show');
+    if (!id) $('#eTitle').focus();
+  },
+  close(){ $('#editorOverlay').classList.remove('show'); S.editingId = null; },
+  save(){
+    const err = m => { $('#eErr').textContent = m; };
+    const subject = $('#eSubject').value === 'custom' ? $('#eSubjectCustom').value.trim() : $('#eSubject').value;
+    const title = $('#eTitle').value.trim();
+    const date = $('#eDate').value;
+    const period = $('#ePeriod').value;
+    const time = period === 'custom' ? $('#eTime').value : '';
+    if (!subject) return err('请填写作业科目');
+    if (!title) return err('请填写作业名称 / 内容');
+    if (!date) return err('请选择上交日期');
+    if (period === 'custom' && !time) return err('请填写具体截止时间');
+    const dl = { date, period, time };
+    const fields = {
+      subject, title, deadline: dl, deadlineTs: computeTs(dl),
+      submitMethod: $('#eSubmit').value,
+      tags: Array.from(this.selTags),
+      priority: $('#eUrgent').checked ? 'urgent' : 'normal',
+      notes: $('#eNotes').value.trim()
+    };
+    if (this.editing){
+      const it = S.items.find(x => x.id === this.editing);
+      Object.assign(it, fields);
+      touch(it);
+      toast('已保存修改');
+    } else {
+      S.items.push(Object.assign({
+        id: uid(), status: 'todo', createdAt: Date.now(), updatedAt: Date.now(), deleted: false
+      }, fields));
+      toast('已添加作业');
+    }
+    saveItems();
+    this.close();
+    refreshAll();
+  }
+};
+
+/* ---------------- 删除 / 状态 / 批量操作 ---------------- */
+function delItems(ids){
+  if (!ids.length) return;
+  confirmBox(ids.length === 1 ? '确定删除这条作业吗？删除后不可恢复。' : '确定删除选中的 ' + ids.length + ' 条作业吗？删除后不可恢复。', () => {
+    ids.forEach(id => { const it = S.items.find(x => x.id === id); if (it){ it.deleted = true; touch(it); } });
+    S.selected.clear();
+    saveItems();
+    refreshAll();
+    toast('已删除 ' + ids.length + ' 条作业');
+  });
+}
+function cycleStatus(id){
+  const it = S.items.find(x => x.id === id);
+  if (!it) return;
+  it.status = it.status === 'todo' ? 'doing' : it.status === 'doing' ? 'done' : 'todo';
+  touch(it);
+  saveItems();
+  refreshAll();
+}
+function setBatch(on){
+  S.batch = on;
+  document.body.classList.toggle('inbatch', on);
+  $('#btnBatch').textContent = on ? '退出批量' : '批量管理';
+  if (!on) S.selected.clear();
+  refreshAll();
+}
+function batchSetStatus(st){
+  if (!S.selected.size) return toast('请先勾选作业');
+  S.items.forEach(it => { if (S.selected.has(it.id) && !it.deleted){ it.status = st; touch(it); } });
+  saveItems();
+  refreshAll();
+  toast('已批量更新 ' + S.selected.size + ' 条作业');
+}
+function clearDone(){
+  const ids = visibleItems().filter(i => i.status === 'done').map(i => i.id);
+  if (!ids.length) return toast('当前没有已完成的作业');
+  confirmBox('确定清空全部 ' + ids.length + ' 条已完成的作业吗？', () => {
+    ids.forEach(id => { const it = S.items.find(x => x.id === id); it.deleted = true; touch(it); });
+    saveItems();
+    refreshAll();
+    toast('已清空已完成作业');
+  });
+}
+function clearAll(){
+  confirmBox('确定清空全部数据吗？此操作不可恢复！建议先「导出备份」。', () => {
+    S.items = [];
+    Store.set(K.ITEMS, S.items);
+    Store.set(K.REMIND, []);
+    refreshAll();
+    toast('已清空全部作业数据');
+  });
+}
+
+/* ---------------- 提醒调度器 ---------------- */
+const Reminder = {
+  timer: null,
+  start(){
+    if (this.timer) clearInterval(this.timer);
+    this.timer = setInterval(() => this.tick(), 30000);
+    window.addEventListener('visibilitychange', () => { if (!document.hidden) this.tick(); });
+    window.addEventListener('focus', () => this.tick());
+    this.tick();
+  },
+  tick(){
+    if (!S.settings.reminder.enabled || !AuthUI.isAuthed()) return;
+    const now = Date.now();
+    const keys = Store.get(K.REMIND, []);
+    let dirty = false;
+    S.items.forEach(it => {
+      if (it.deleted || it.status === 'done') return;
+      S.settings.reminder.offsetsHours.forEach(h => {
+        const fire = it.deadlineTs - h * 3600000;
+        if (fire <= now && now < it.deadlineTs){
+          const key = it.id + '@' + h;
+          if (!keys.includes(key)){ keys.push(key); dirty = true; this.fire(it, h); }
+        }
+      });
+    });
+    /* 清理过期去重键：作业已删除或截止已过 48 小时 */
+    const keep = keys.filter(k => {
+      const it = S.items.find(x => x.id === k.split('@')[0]);
+      return it && !it.deleted && it.deadlineTs + 172800000 > now;
+    });
+    if (dirty || keep.length !== keys.length) Store.set(K.REMIND, keep);
+    refreshTimes();
+  },
+  fire(it, h){
+    const box = $('#remindBox');
+    if (box.children.length >= 4) box.firstChild.remove();
+    const el = document.createElement('div');
+    el.className = 'remind';
+    el.innerHTML =
+      '<div class="rt">作业截止提醒（' + (h >= 24 ? '提前' + (h / 24) + '天' : '提前' + h + '小时') + '）</div>' +
+      '<div>【' + escapeHtml(it.subject) + '】' + escapeHtml(it.title) + '</div>' +
+      '<div>截止：' + escapeHtml(deadlineText(it)) + '，' + escapeHtml(remainingText(it)) + '</div>' +
+      '<div class="rb"><button class="btn small" data-a="ok">知道了</button><button class="btn small primary" data-a="go">去处理</button></div>';
+    el.addEventListener('click', e => {
+      const b = e.target.closest('[data-a]');
+      if (!b) return;
+      el.remove();
+      if (b.dataset.a === 'go') Editor.open(it.id);
+    });
+    box.appendChild(el);
+    /* 系统通知为增强通道，失败静默降级为页面内提醒 */
+    if (S.settings.reminder.notifySystem && 'Notification' in window && Notification.permission === 'granted'){
+      try { new Notification('作业截止提醒', { body: '【' + it.subject + '】' + it.title + '，' + remainingText(it) }); } catch (e) {}
+    }
+  }
+};
+
+/* ---------------- 云同步适配层（本地模式默认，预留 REST 接口） ----------------
+ * 部署后端后：将 API_BASE 改为服务器地址（如 'https://your-server/api'），
+ * 并实现 pull/push 的 fetch 版本即可，UI 层零改动。
+ * REST 约定：
+ *   POST /api/register  {username, passwordHash} -> {token}
+ *   POST /api/login     {username, passwordHash} -> {token}
+ *   GET  /api/data      Authorization: Bearer <token> -> {items, settings, serverTime}
+ *   PUT  /api/data      {items, settings} -> {serverTime}
+ * 冲突策略：按条目 updatedAt 时间戳 newer-wins（含 deleted 墓碑）。
+ * ---------------------------------------------------------------- */
+const Sync = {
+  API_BASE: null,
+  mode(){ return this.API_BASE ? 'cloud' : 'local'; },
+  validUser(u){ return /^[A-Za-z0-9_\u4e00-\u9fa5]{3,20}$/.test(u); },
+  /* 账号表：本机支持多账号；兼容旧版单账号格式并自动迁移 */
+  getAccounts(){
+    let a = Store.get(K.AUTH, null);
+    if (a && a.username && a.passHash){
+      a = { accounts: (function(m, k, v){ m[k] = v; return m; })({}, a.username, a.passHash) };
+      Store.set(K.AUTH, a);
+    }
+    return (a && a.accounts) || {};
+  },
+  /* 统一智能入口：用户名不存在→自动注册；存在→验证密码。
+     彻底消除"无该账号"死胡同——无论本机数据是否被清理，同样的用户名密码总能进入。 */
+  async enter(u, p){
+    if (!this.validUser(u)) return { ok: false, error: '用户名需 3-20 位（字母/数字/下划线/中文）' };
+    if (p.length < 6) return { ok: false, error: '密码至少 6 位' };
+    const accounts = this.getAccounts();
+    const created = !accounts[u];
+    if (!created && accounts[u] !== hashPwd(u + p)) return { ok: false, error: '该用户名已存在，密码不正确' };
+    if (created){
+      accounts[u] = hashPwd(u + p);
+      Store.set(K.AUTH, { accounts: accounts });   /* 凭据独立存储：退出登录只清会话态，不清凭据 */
+    }
+    S.settings.account = { username: u, token: accounts[u], lastSyncAt: S.settings.account.lastSyncAt || 0 };
+    Store.set(K.SETTINGS, S.settings);
+    return { ok: true, created: created };
+  },
+  async logout(){
+    /* 仅清除登录会话态，凭据保留在 hw.auth.v1 */
+    S.settings.account = { username: null, token: null, lastSyncAt: 0 };
+    Store.set(K.SETTINGS, S.settings);
+  },
+  /* 本地模式 stub：真实云端实现时替换为 fetch 调用 */
+  async pull(){ return { ok: true, items: [], settings: {}, serverTime: Date.now() }; },
+  async push(){ return { ok: true, serverTime: Date.now() }; },
+  async syncNow(){
+    const r = await this.push();
+    if (r.ok){ S.settings.account.lastSyncAt = r.serverTime || Date.now(); Store.set(K.SETTINGS, S.settings); }
+    return { ok: true, pushed: visibleItems().length, pulled: 0 };
+  },
+  status(){
+    const a = S.settings.account;
+    return { loggedIn: !!a.username, mode: this.mode(), username: a.username, lastSyncAt: a.lastSyncAt };
+  }
+};
+
+/* ---------------- 登录/注册门屏（统一智能入口） ---------------- */
+const AuthUI = {
+  isAuthed(){ return !!S.settings.account.username; },
+  init(){
+    $('#authUser').addEventListener('keydown', e => { if (e.key === 'Enter') $('#authPass').focus(); });
+    $('#authPass').addEventListener('keydown', e => { if (e.key === 'Enter') this.submit(); });
+    $('#authSubmit').addEventListener('click', () => this.submit());
+  },
+  refresh(){
+    const show = !this.isAuthed();
+    $('#authOverlay').classList.toggle('show', show);
+    document.body.style.overflow = show ? 'hidden' : '';
+    if (!show) return;
+    const names = Object.keys(Sync.getAccounts());
+    const userInput = $('#authUser');
+    userInput.placeholder = names.length ? '本机账号：' + names.join('、') : '3-20 位字母/数字/下划线/中文';
+    if (!userInput.value && names.length) userInput.value = names[0];
+    setTimeout(() => $(userInput.value ? '#authPass' : '#authUser').focus(), 60);
+  },
+  async submit(){
+    const err = m => { $('#authErr').textContent = m; };
+    const u = $('#authUser').value.trim(), p = $('#authPass').value;
+    const r = await Sync.enter(u, p);
+    if (!r.ok) return err(r.error);
+    $('#authUser').value = ''; $('#authPass').value = '';
+    this.refresh();
+    SettingsUI.renderAccount();
+    refreshAll();
+    toast(r.created ? '账号已创建，欢迎使用' : '欢迎回来，' + u);
+  }
+};
+
+/* ---------------- 设置弹窗 ---------------- */
+const SettingsUI = {
+  init(){
+    $('#tLight').addEventListener('click', () => this.setMode('light'));
+    $('#tDark').addEventListener('click', () => this.setMode('dark'));
+    $('#cPrimary').addEventListener('input', e => { S.settings.theme.primary = e.target.value; applyTheme(); this.save(); });
+    $('#cSecondary').addEventListener('input', e => { S.settings.theme.secondary = e.target.value; applyTheme(); this.save(); });
+    $('#rEnabled').addEventListener('change', e => { S.settings.reminder.enabled = e.target.checked; this.save(); });
+    $('#rNotify').addEventListener('change', e => this.setNotify(e.target.checked));
+    $('#rOffsets').addEventListener('change', e => {
+      const h = Number(e.target.dataset.h);
+      const arr = S.settings.reminder.offsetsHours;
+      if (e.target.checked){ if (!arr.includes(h)) arr.push(h); }
+      else { S.settings.reminder.offsetsHours = arr.filter(x => x !== h); }
+      this.save();
+    });
+    $('#dExport').addEventListener('click', () => this.exportData());
+    $('#dImport').addEventListener('click', () => $('#importFile').click());
+    $('#importFile').addEventListener('change', e => this.importData(e));
+    $('#dClearDone').addEventListener('click', () => { clearDone(); this.renderAccount(); });
+    $('#dClearAll').addEventListener('click', clearAll);
+    $('#sClose').addEventListener('click', () => this.close());
+    $('#settingsOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) this.close(); });
+  },
+  save(){ Store.set(K.SETTINGS, S.settings); },
+  setMode(m){ S.settings.theme.mode = m; applyTheme(); this.save(); this.renderTheme(); },
+  setNotify(on){
+    if (!on){ S.settings.reminder.notifySystem = false; this.save(); return; }
+    if (!('Notification' in window)){ toast('当前浏览器不支持系统通知'); $('#rNotify').checked = false; return; }
+    Notification.requestPermission().then(p => {
+      S.settings.reminder.notifySystem = p === 'granted';
+      if (p !== 'granted') toast('未获得通知权限，将仅使用页面内提醒');
+      $('#rNotify').checked = p === 'granted';
+      this.save();
+    }).catch(() => { $('#rNotify').checked = false; });
+  },
+  renderTheme(){
+    const t = S.settings.theme;
+    $('#tLight').classList.toggle('active', t.mode === 'light');
+    $('#tDark').classList.toggle('active', t.mode === 'dark');
+    $('#cPrimary').value = t.primary;
+    $('#cSecondary').value = t.secondary;
+    $('#rEnabled').checked = S.settings.reminder.enabled;
+    $('#rNotify').checked = !!S.settings.reminder.notifySystem;
+    $('#rOffsets').innerHTML = CFG.offsets.map(o =>
+      '<label class="tg' + (S.settings.reminder.offsetsHours.includes(o.h) ? ' on' : '') + '">' +
+      '<input type="checkbox" data-h="' + o.h + '"' + (S.settings.reminder.offsetsHours.includes(o.h) ? ' checked' : '') + ' style="width:14px;height:14px"> ' + o.label + '</label>').join('');
+  },
+  renderAccount(){
+    const st = Sync.status();
+    const box = $('#acctBox');
+    if (!st.loggedIn){
+      box.innerHTML = '<div class="hint">尚未登录。退出后将返回登录/注册界面。</div>';
+    } else {
+      const last = st.lastSyncAt ? new Date(st.lastSyncAt).toLocaleString('zh-CN') : '从未';
+      box.innerHTML =
+        '<div>当前账号：<b>' + escapeHtml(st.username) + '</b>（' + (st.mode === 'local' ? '本地模式' : '云端模式') + '）</div>' +
+        '<div class="hint">上次同步：' + last + '</div>' +
+        '<div style="display:flex;gap:8px;margin-top:10px">' +
+        '<button class="btn small primary" id="aSync">立即同步</button><button class="btn small" id="aOut">退出登录</button></div>';
+      $('#aSync').addEventListener('click', async () => {
+        const r = await Sync.syncNow();
+        if (r.ok){ toast('同步完成，已备份 ' + r.pushed + ' 条作业'); this.renderAccount(); }
+      });
+      $('#aOut').addEventListener('click', async () => {
+        await Sync.logout();
+        this.close();
+        $('#remindBox').innerHTML = '';
+        AuthUI.refresh();
+        toast('已退出登录');
+      });
+    }
+  },
+  exportData(){
+    const data = {
+      version: 1, exportedAt: Date.now(), app: '假期作业管家',
+      items: visibleItems(),
+      settings: { theme: S.settings.theme, reminder: S.settings.reminder }
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '作业备份_' + fmtDate(new Date()).replace(/-/g, '') + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('备份已导出');
+  },
+  importData(e){
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      let data;
+      try { data = JSON.parse(reader.result); } catch (err) { return toast('导入失败：文件格式不正确'); }
+      if (!data || !Array.isArray(data.items)) return toast('导入失败：备份文件不包含作业数据');
+      confirmBox('导入将覆盖当前全部作业数据（共 ' + data.items.length + ' 条），确定继续吗？', () => {
+        S.items = data.items.map(it => {
+          const it2 = Object.assign({ deleted: false }, it);
+          if (!it2.deadlineTs && it2.deadline) it2.deadlineTs = computeTs(it2.deadline);
+          if (!it2.createdAt) it2.createdAt = Date.now();
+          if (!it2.updatedAt) it2.updatedAt = Date.now();
+          return it2;
+        });
+        if (data.settings){
+          if (data.settings.theme){ Object.assign(S.settings.theme, data.settings.theme); applyTheme(); }
+          if (data.settings.reminder) Object.assign(S.settings.reminder, data.settings.reminder);
+          this.save();
+        }
+        saveItems();
+        refreshAll();
+        toast('导入成功，共 ' + S.items.length + ' 条作业');
+      });
+    };
+    reader.readAsText(file);
+  },
+  open(){ this.renderTheme(); this.renderAccount(); $('#settingsOverlay').classList.add('show'); },
+  close(){ $('#settingsOverlay').classList.remove('show'); }
+};
+
+/* ---------------- 启动入口 ---------------- */
+function bindGlobal(){
+  $('#btnNew').addEventListener('click', () => Editor.open(null));
+  $('#btnSettings').addEventListener('click', () => SettingsUI.open());
+  $('#btnMode').addEventListener('click', () => SettingsUI.setMode(S.settings.theme.mode === 'light' ? 'dark' : 'light'));
+  $('#btnBatch').addEventListener('click', () => setBatch(!S.batch));
+  $('#btnClearDone').addEventListener('click', clearDone);
+
+  $('#filters').addEventListener('change', e => {
+    const f = e.target.dataset.f;
+    if (!f) return;
+    S.filter[f] = e.target.value;
+    renderList();
+  });
+
+  $('#bAll').addEventListener('click', () => {
+    sortItems(filterItems(visibleItems(), S.filter)).forEach(it => S.selected.add(it.id));
+    renderList(); renderBatchBar();
+  });
+  $('#bInvert').addEventListener('click', () => {
+    filterItems(visibleItems(), S.filter).forEach(it => {
+      if (S.selected.has(it.id)) S.selected.delete(it.id); else S.selected.add(it.id);
+    });
+    renderList(); renderBatchBar();
+  });
+  $('#bDoing').addEventListener('click', () => batchSetStatus('doing'));
+  $('#bDone').addEventListener('click', () => batchSetStatus('done'));
+  $('#bDel').addEventListener('click', () => { if (!S.selected.size) return toast('请先勾选作业'); delItems(Array.from(S.selected)); });
+  $('#bExit').addEventListener('click', () => setBatch(false));
+
+  $('#list').addEventListener('click', e => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn || btn.dataset.act === 'pick') return;
+    const card = btn.closest('.hw-card');
+    if (!card) return;
+    const id = card.dataset.id;
+    if (btn.dataset.act === 'status') cycleStatus(id);
+    else if (btn.dataset.act === 'edit') Editor.open(id);
+    else if (btn.dataset.act === 'del') delItems([id]);
+  });
+  $('#list').addEventListener('change', e => {
+    if (e.target.dataset.act !== 'pick') return;
+    const id = e.target.closest('.hw-card').dataset.id;
+    if (e.target.checked) S.selected.add(id); else S.selected.delete(id);
+    e.target.closest('.hw-card').classList.toggle('selected', e.target.checked);
+    renderBatchBar();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    $('#confirmOverlay').classList.remove('show'); cfCb = null;
+    Editor.close(); SettingsUI.close();
+  });
+}
+
+function init(){
+  if (!storageOK()) $('#storBanner').style.display = 'block';
+  const saved = Store.get(K.ITEMS, null);
+  S.items = Array.isArray(saved) ? saved : [];   /* 首次进入内容为空，不注入演示数据 */
+  if (saved === null) saveItems();
+  S.settings = Object.assign(defaultSettings(), Store.get(K.SETTINGS, {}));
+  S.settings.theme = Object.assign(defaultSettings().theme, S.settings.theme || {});
+  S.settings.reminder = Object.assign(defaultSettings().reminder, S.settings.reminder || {});
+  S.settings.account = Object.assign(defaultSettings().account, S.settings.account || {});
+
+  applyTheme();
+  bindConfirm();
+  Editor.init();
+  SettingsUI.init();
+  AuthUI.init();
+  bindGlobal();
+  refreshAll();
+  Reminder.start();
+  AuthUI.refresh();
+}
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
