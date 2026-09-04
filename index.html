@@ -373,7 +373,8 @@ body.inbatch .hw-card .pick{ display:flex; }
         <button class="btn small danger" id="dClearDone">清空已完成</button>
         <button class="btn small danger" id="dClearAll">清空全部数据</button>
       </div>
-      <div class="hint">建议定期导出 JSON 备份，防止浏览器清理数据导致丢失。</div>
+      <div class="hint">数据已双通道保存（本地存储 + 本地数据库 IndexedDB），其中一个被清理时会自动从另一个恢复。</div>
+      <div class="hint">若每次关闭浏览器后都要求重新进入，说明浏览器开启了"退出时清除浏览数据"，请在浏览器设置中关闭：Chrome/Edge 为「设置 → 隐私 → Cookie → 关闭"关闭所有窗口时清除 Cookie 和网站数据"」；360/QQ 浏览器请检查「退出时清理上网痕迹」选项。也可定期「导出备份」以防万一。</div>
     </div>
 
     <div class="mops">
@@ -463,6 +464,37 @@ function storageOK(){
   try { localStorage.setItem('__t', '1'); localStorage.removeItem('__t'); return true; }
   catch (e) { return false; }
 }
+/* ---------------- IndexedDB 镜像（第二存储通道，防浏览器退出清理丢数据） ---------------- */
+const Repo = {
+  db: null, _p: null,
+  open(){
+    if (this._p) return this._p;
+    this._p = new Promise(res => {
+      try {
+        const rq = indexedDB.open('hw-db', 1);
+        rq.onupgradeneeded = () => { rq.result.createObjectStore('kv'); };
+        rq.onsuccess = () => { this.db = rq.result; res(this.db); };
+        rq.onerror = () => res(null);
+      } catch (e) { res(null); }
+    });
+    return this._p;
+  },
+  async put(key, val){
+    const db = await this.open(); if (!db) return;
+    try { db.transaction('kv', 'readwrite').objectStore('kv').put(val, key); } catch (e) {}
+  },
+  get(key){
+    return this.open().then(db => new Promise(res => {
+      if (!db) return res(null);
+      try {
+        const rq = db.transaction('kv').objectStore('kv').get(key);
+        rq.onsuccess = () => res(rq.result === undefined ? null : rq.result);
+        rq.onerror = () => res(null);
+      } catch (e) { res(null); }
+    }));
+  }
+};
+
 const Store = {
   get(key, def){
     try {
@@ -471,14 +503,42 @@ const Store = {
     } catch (e) { console.warn('读取失败:', key, e); return def; }
   },
   set(key, val){
-    try { localStorage.setItem(key, JSON.stringify(val)); return true; }
-    catch (e) {
-      console.warn('保存失败:', key, e);
-      toast('保存失败：本地存储空间不足或被禁用');
-      return false;
-    }
+    let ok = true;
+    try { localStorage.setItem(key, JSON.stringify(val)); }
+    catch (e) { ok = false; console.warn('保存失败:', key, e); toast('保存失败：本地存储空间不足或被禁用'); }
+    Repo.put(key, val);   /* 双通道镜像：localStorage 与 IndexedDB 同步写 */
+    return ok;
   }
 };
+
+/* 数据自愈：localStorage 被浏览器退出清理而 IndexedDB 仍在时，自动恢复数据；
+   同时每次启动将现存数据重镜像到 IndexedDB，保证双通道一致（含旧版本未镜像的数据） */
+async function restoreFromRepo(){
+  let restored = false;
+  for (const k of [K.ITEMS, K.SETTINGS, K.AUTH, K.REMIND]){
+    const ls = Store.get(k, null);
+    if (ls === null){
+      const v = await Repo.get(k);
+      if (v !== null && v !== undefined){ Store.set(k, v); restored = true; }
+    } else {
+      Repo.put(k, ls);
+    }
+  }
+  /* 兜底：本地模式且处于登录态、但凭据表缺失（两通道均被清理过）时，
+     用 settings.account.token（即本地密码哈希）重建凭据表，保证退出后仍可重新进入 */
+  if (Sync.mode() === 'local'){
+    const st = Store.get(K.SETTINGS, null);
+    if (st && st.account && st.account.username && st.account.token && /^h[0-9a-z]{1,8}$/.test(st.account.token)){
+      const auth = Store.get(K.AUTH, null) || { accounts: {} };
+      if (!auth.accounts || !auth.accounts[st.account.username]){
+        auth.accounts = auth.accounts || {};
+        auth.accounts[st.account.username] = st.account.token;
+        Store.set(K.AUTH, auth);
+      }
+    }
+  }
+  return restored;
+}
 
 /* ---------------- 全局状态 ---------------- */
 function defaultSettings(){
@@ -1158,8 +1218,10 @@ function bindGlobal(){
   });
 }
 
-function init(){
+async function init(){
   if (!storageOK()) $('#storBanner').style.display = 'block';
+  /* 双通道自愈：localStorage 被浏览器退出清理时，从 IndexedDB 自动恢复账号与作业 */
+  const restored = await restoreFromRepo();
   const saved = Store.get(K.ITEMS, null);
   S.items = Array.isArray(saved) ? saved : [];   /* 首次进入内容为空，不注入演示数据 */
   if (saved === null) saveItems();
@@ -1168,6 +1230,9 @@ function init(){
   S.settings.reminder = Object.assign(defaultSettings().reminder, S.settings.reminder || {});
   S.settings.account = Object.assign(defaultSettings().account, S.settings.account || {});
 
+  /* 申请持久化存储：降低浏览器在磁盘空间不足时自动清除数据的概率 */
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+
   applyTheme();
   bindConfirm();
   Editor.init();
@@ -1175,6 +1240,7 @@ function init(){
   AuthUI.init();
   bindGlobal();
   refreshAll();
+  if (restored) toast('已从本地数据库自动恢复账号与作业数据');
   Reminder.start();
   AuthUI.refresh();
 }
